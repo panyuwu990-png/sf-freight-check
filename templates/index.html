@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>顺丰物流月度核对</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f0f2f5; color: #333; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+
+    .upload-panel {
+      background: white; border-radius: 12px; padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07); margin-bottom: 20px;
+    }
+    .upload-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; margin-bottom: 16px;
+    }
+    .file-box { background: #fafafa; border: 1.5px dashed #ccc; border-radius: 8px; padding: 14px; }
+    .file-box label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 6px; color: #444; }
+    .file-box input[type=file] { font-size: 13px; width: 100%; }
+    .file-box small { color: #888; font-size: 12px; }
+
+    .btn-row { text-align: center; }
+    button {
+      padding: 12px 36px; border: 0; border-radius: 8px;
+      background: #1677ff; color: white; font-size: 16px; cursor: pointer;
+    }
+    button:hover { background: #0a5ce0; }
+
+    .result-panel {
+      background: white; border-radius: 12px; padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    }
+    .result-title { font-size: 18px; font-weight: bold; margin-bottom: 16px; }
+
+    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stat-box {
+      flex: 1; min-width: 120px; padding: 12px 16px; border-radius: 8px;
+      font-size: 13px;
+    }
+    .stat-box.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .stat-box.red { background: #fef2f2; border: 1px solid #fecaca; }
+    .stat-box.blue { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .stat-box.gray { background: #f9fafb; border: 1px solid #e5e7eb; }
+    .stat-box .num { font-size: 24px; font-weight: bold; }
+    .stat-box.green .num { color: #16a34a; }
+    .stat-box.red .num { color: #dc2626; }
+    .stat-box.blue .num { color: #2563eb; }
+    .stat-box.gray .num { color: #6b7280; }
+
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 12px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
+    th { background: #f9fafb; font-weight: 600; position: sticky; top: 0; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr.abnormal { background: #fef2f2; }
+    .tag-abnormal { background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .tag-normal { background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .tag-empty { color: #9ca3af; }
+    .tag-yes { color: #16a34a; font-weight: bold; }
+    .tag-no { color: #dc2626; font-weight: bold; }
+
+    .download-btn {
+      display: inline-block; padding: 10px 24px; background: #16a34a; color: white;
+      text-decoration: none; border-radius: 8px; font-size: 15px; margin-bottom: 16px;
+    }
+    .download-btn:hover { background: #15803d; }
+
+    .preview-note { color: #888; font-size: 12px; margin-top: 8px; }
+
+    @media (max-width: 640px) {
+      .upload-grid { grid-template-columns: 1fr; }
+      .stats { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>顺丰物流月度费用核对</h1>
+  <p class="subtitle">上传账单Excel，自动清洗到件地区，匹配订单明细 / 城市省份 / 运费价格表，输出核对结果</p>
+
+  <div class="upload-panel">
+    <form method="post" enctype="multipart/form-data" id="form">
+      <div class="upload-grid">
+        <div class="file-box">
+          <label>📋 顺丰月结账单</label>
+          <input type="file" name="bill_file" accept=".xlsx" required>
+          <small>顺丰对账单 Excel（账单明细 Sheet）</small>
+        </div>
+        <div class="file-box">
+          <label>📦 订单明细表</label>
+          <input type="file" name="order_file" accept=".xlsx" required>
+          <small>包含店铺名称和快递单号的订单表</small>
+        </div>
+        <div class="file-box">
+          <label>🗺️ 全国城市省份表</label>
+          <input type="file" name="city_file" accept=".xlsx" required>
+          <small>城市→省份映射表</small>
+        </div>
+        <div class="file-box">
+          <label>💰 顺丰物流价格表</label>
+          <input type="file" name="price_file" accept=".xlsx" required>
+          <small>按省份和重量段的运费计算规则</small>
+        </div>
+        <div class="file-box">
+          <label>🏪 B站赠送明细表</label>
+          <input type="file" name="bizhan_file" accept=".xlsx" required>
+          <small>B站抽奖/赠送对应的快递单号和发出型号</small>
+        </div>
+        <div class="file-box">
+          <label>📣 推广KOC明细表</label>
+          <input type="file" name="koc_file" accept=".xlsx" required>
+          <small>推广达人KOC的发出/寄回快递单号和型号</small>
+        </div>
+        <div class="file-box">
+          <label>🏧 出入库单明细表</label>
+          <input type="file" name="io_file" accept=".xlsx" required>
+          <small>出入库单号和备注（含[其他]吉他情报局匹配）</small>
+        </div>
+        <div class="file-box">
+          <label>🔄 售后单明细表</label>
+          <input type="file" name="aftersale_file" accept=".xlsx" required>
+          <small>售后退货对应的退回快递单号</small>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="submit" id="submit-btn">开始处理</button>
+      </div>
+    </form>
+  </div>
+
+  {% if stats %}
+  <div class="result-panel">
+    <div class="result-title">处理结果</div>
+    <div class="stats">
+      <div class="stat-box gray"><div class="num">{{ stats.total }}</div>账单行数</div>
+      <div class="stat-box green"><div class="num">{{ stats.matched_shop }}</div>匹配店铺</div>
+      <div class="stat-box blue"><div class="num">{{ stats.matched_province }}</div>匹配省份</div>
+      <div class="stat-box green"><div class="num">{{ stats.matched_price }}</div>匹配价格</div>
+      <div class="stat-box red"><div class="num">{{ stats.abnormal }}</div>异常行数</div>
+      <div class="stat-box red"><div class="num">{{ stats.consistent_fail }}</div>不一致行</div>
+    </div>
+
+    <a href="{{ download_url }}" class="download-btn">⬇ 下载处理结果 Excel</a>
+    <a href="/clear" class="download-btn" style="background:#6b7280; margin-left:12px;">🗑️ 重新上传</a>
+
+    <table>
+      <thead>
+        <tr>
+          {% for col in preview_cols %}<th>{{ col }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in preview_rows %}
+        <tr class="{% if row[8] == '异常' %}abnormal{% endif %}">
+          {% for cell in row %}
+            <td>
+            {% if cell == '一致' %}<span class="tag-yes">一致</span>
+            {% elif cell == '不一致' %}<span class="tag-no">不一致</span>
+            {% elif cell == '异常' %}<span class="tag-abnormal">异常</span>
+            {% elif cell == '正常' %}<span class="tag-normal">正常</span>
+            {% elif cell == '' or cell is none %}—
+            {% else %}{{ cell }}{% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="preview-note">以上为前 {{ preview_rows|length }} 行预览，完整数据在下载的 Excel 中</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  const form = document.getElementById('form');
+  const btn = document.getElementById('submit-btn');
+  form.addEventListener('submit', () => {
+    btn.textContent = '处理中，请稍候…';
+    btn.disabled = true;
+  });
+</script>
+</body>
+</html>
