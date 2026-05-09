@@ -54,7 +54,7 @@ PROVINCE_HINTS = {
 # ============================================================
 PROVINCE_SHORT_TO_FULL = {
     '北京': '北京', '天津': '天津', '上海': '上海', '重庆': '重庆',
-    '河北': '河北省', '山西': '山西省', '内蒙古': '内蒙古自治区',
+    '河北': '河北省', '山西': '山西省', '内蒙古': '内蒙古自治区', '内蒙': '内蒙古自治区',
     '辽宁': '辽宁省', '吉林': '吉林省', '黑龙江': '黑龙江省',
     '江苏': '江苏省', '浙江': '浙江省', '安徽': '安徽省', '福建': '福建省',
     '江西': '江西省', '山东': '山东省', '河南': '河南省', '湖北': '湖北省',
@@ -245,6 +245,14 @@ def calc_freight(price_tables, product, service, sender_area, dest_city, dest_pr
 
     # ========== 顺丰干配 ==========
     if product == '顺丰干配':
+        # 内蒙古使用标快异地价格
+        if dest_province and normalize_province(dest_province) == '内蒙古自治区':
+            biao_cross = price_tables.get('biao_cross', [])
+            result = _calc_biao(biao_cross, normalize_province(dest_province), dest_city, w)
+            if result[0] is not None:
+                return result
+            result = _calc_biao_by_city(biao_cross, dest_city, w)
+            return result
         return _calc_ganpei(price_tables['ganpei'], dest_province, w, service)
 
     # ========== 顺丰标快 / 顺丰特快 ==========
@@ -626,7 +634,7 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
     header = [cell.value for cell in ws[2]]
     col_idx = {str(v).strip(): i + 1 for i, v in enumerate(header) if v is not None}
 
-    new_cols = ['店铺', '省份', '运费', '上浮费', '总运费', '是否一致？', '是否异常？', '备注']
+    new_cols = ['店铺', '省份', '运费', '上浮费', '总运费', '是否异常？', '是否一致？', '备注']
     start_col = ws.max_column + 1
     for i, col in enumerate(new_cols, start=start_col):
         ws.cell(row=2, column=i, value=col)
@@ -746,7 +754,7 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
 
         processed.append([
             waybill_no, raw_area, shop, province, freight, surcharge,
-            computed_total, consistent, abnormal, remark_text
+            computed_total, abnormal, consistent, remark_text
         ])
 
     return wb, processed, stats
