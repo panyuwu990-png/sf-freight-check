@@ -2,7 +2,13 @@
 """数据清洗和匹配逻辑"""
 
 import re
+from decimal import Decimal, ROUND_HALF_UP
 from openpyxl import load_workbook
+
+
+def _round_half_up(value):
+    """四舍五入到整数（传统ROUND_HALF_UP，区别于Python内置banker's rounding）"""
+    return int(Decimal(str(value)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
 
 # ============================================================
@@ -298,7 +304,7 @@ def _calc_ganpei(ganpei_rows, dest_province, weight, service):
         else:
             freight = base
 
-        return round(freight), True
+        return _round_half_up(freight), True
 
     return None, False
 
@@ -369,7 +375,7 @@ def _calc_biao(biao_rows, sender_province, dest_city, weight):
 
             freight = first_p + excess * step_price
 
-        return round(freight), True
+        return _round_half_up(freight), True
 
     return None, False
 
@@ -416,7 +422,7 @@ def _calc_biao_by_city(biao_rows, dest_city, weight):
                         step_price = step_p2
             freight = first_p + excess * step_price
 
-        return round(freight), True
+        return _round_half_up(freight), True
 
     return None, False
 
@@ -647,7 +653,8 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         product    = ws.cell(r, col_idx.get('产品类型', 8)).value
         service    = ws.cell(r, col_idx.get('服务', 14)).value
         weight     = ws.cell(r, col_idx.get('计费重量', 7)).value
-        total_orig = ws.cell(r, col_idx.get('应付金额', 12)).value
+        fee_orig   = ws.cell(r, col_idx.get('费用(元)', 10)).value   # 对比基准
+        total_orig = ws.cell(r, col_idx.get('应付金额', 12)).value  # 输出用
 
         # 1. 到件地区清洗
         raw_area, main_city, city_list = normalize_area(area)
@@ -715,15 +722,17 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         computed_total = freight
 
         consistent = ''
-        if freight is not None and total_orig is not None:
+        if freight is not None and fee_orig is not None:
             try:
-                if round(float(freight), 2) == round(float(total_orig), 2):
+                fee_f = float(str(fee_orig).strip())
+                freight_f = float(freight)
+                if abs(freight_f - fee_f) <= 0.01:
                     consistent = '一致'
                     stats['consistent_ok'] += 1
                 else:
                     consistent = '不一致'
                     stats['consistent_fail'] += 1
-                    remarks.append(f'运费({round(float(freight), 2)})≠应付({total_orig})')
+                    remarks.append(f'运费({freight_f})≠费用({fee_f})')
             except (TypeError, ValueError):
                 consistent = ''
 
