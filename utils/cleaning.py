@@ -304,7 +304,7 @@ def _calc_ganpei(ganpei_rows, dest_province, weight, service):
         else:
             freight = base
 
-        return _round_half_up(freight), True
+        return round(freight, 2), True  # 干配保留两位小数
 
     return None, False
 
@@ -722,17 +722,17 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         computed_total = freight
 
         consistent = ''
-        if freight is not None and fee_orig is not None:
+        if freight is not None and total_orig is not None:
             try:
-                fee_f = float(str(fee_orig).strip())
                 freight_f = float(freight)
-                if abs(freight_f - fee_f) <= 0.01:
+                total_f = float(str(total_orig).strip())
+                if abs(freight_f - total_f) <= 0.01:
                     consistent = '一致'
                     stats['consistent_ok'] += 1
                 else:
                     consistent = '不一致'
                     stats['consistent_fail'] += 1
-                    remarks.append(f'运费({freight_f})≠费用({fee_f})')
+                    remarks.append(f'总运费({freight_f})≠应付({total_f})')
             except (TypeError, ValueError):
                 consistent = ''
 
