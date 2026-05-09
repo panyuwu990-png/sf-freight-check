@@ -748,7 +748,7 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
             remarks.insert(0, f'到件地区含多城市:{raw_area}')
 
         remark_text = '; '.join(remarks)
-        values = [shop, province, freight, surcharge, computed_total, consistent, abnormal, remark_text]
+        values = [shop, province, freight, surcharge, computed_total, abnormal, consistent, remark_text]
         for i, val in enumerate(values, start=start_col):
             ws.cell(row=r, column=i, value=val)
 
