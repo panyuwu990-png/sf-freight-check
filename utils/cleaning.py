@@ -665,8 +665,8 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         fee_orig   = ws.cell(r, col_idx.get('费用(元)', 10)).value   # 对比基准
         total_orig = ws.cell(r, col_idx.get('应付金额', 12)).value  # 输出用
 
-        # 1. 到件地区清洗
-        raw_area, main_city, city_list = normalize_area(area)
+        # 1. 到件地区（不做清洗，直接使用原始值）
+        raw_area = str(area).strip() if area else ''
 
         # 2. 寄件地区清洗（取主城市）
         sender_main = normalize_area(str(sender_area) if sender_area else '')[1] if sender_area else ''
@@ -691,16 +691,16 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         if extra_note:
             remarks.append(extra_note)
 
-        # 6. 省份匹配
-        province = guess_province(main_city, city_map)
+        # 6. 省份匹配（直接用原始到件地区推断省份）
+        province = guess_province(raw_area, city_map)
 
-        # 7. 运费计算（使用新的 calc_freight）
+        # 7. 运费计算
         freight, price_matched = calc_freight(
             price_tables,
             str(product).strip() if product else '',
             str(service).strip() if service else '',
             str(sender_area).strip() if sender_area else '',
-            main_city,
+            raw_area,
             province,
             weight,
         )
@@ -744,9 +744,6 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
                     remarks.append(f'总运费({freight_f})≠应付({total_f})')
             except (TypeError, ValueError):
                 consistent = ''
-
-        if raw_area != main_city and len(city_list) > 1:
-            remarks.insert(0, f'到件地区含多城市:{raw_area}')
 
         remark_text = '; '.join(remarks)
         values = [shop, province, freight, surcharge, computed_total, abnormal, consistent, remark_text]
