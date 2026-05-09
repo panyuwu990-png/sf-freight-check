@@ -246,8 +246,8 @@ def calc_freight(price_tables, product, service, sender_area, dest_city, dest_pr
 
     # ========== 顺丰干配 ==========
     if product == '顺丰干配':
-        # 内蒙古使用标快异地价格
-        if dest_province and normalize_province(dest_province) == '内蒙古自治区':
+        # 西藏使用标快异地价格
+        if dest_province and normalize_province(dest_province) == '西藏自治区':
             biao_cross = price_tables.get('biao_cross', [])
             result = _calc_biao(biao_cross, normalize_province(dest_province), dest_city, w)
             if result[0] is not None:
