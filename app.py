@@ -34,12 +34,11 @@ def index():
         price_file   = request.files.get('price_file')
         bizhan_file  = request.files.get('bizhan_file')
         koc_file     = request.files.get('koc_file')
-        io_file      = request.files.get('io_file')
         aftersale_file = request.files.get('aftersale_file')
 
         if not all([bill_file, order_file, city_file, price_file,
-                     bizhan_file, koc_file, io_file, aftersale_file]):
-            session['error'] = '请上传全部8个文件'
+                     bizhan_file, koc_file, aftersale_file]):
+            session['error'] = '请上传全部7个文件'
             return redirect(url_for('index'))
 
         # 保存到临时目录
@@ -51,7 +50,6 @@ def index():
             price_path    = td / price_file.filename
             bizhan_path   = td / bizhan_file.filename
             koc_path      = td / koc_file.filename
-            io_path       = td / io_file.filename
             aftersale_path = td / aftersale_file.filename
 
             bill_file.save(str(bill_path))
@@ -60,7 +58,6 @@ def index():
             price_file.save(str(price_path))
             bizhan_file.save(str(bizhan_path))
             koc_file.save(str(koc_path))
-            io_file.save(str(io_path))
             aftersale_file.save(str(aftersale_path))
 
             # 加载所有参考数据
@@ -70,7 +67,6 @@ def index():
             match_maps = load_bill_matching_maps(
                 str(bizhan_path),
                 str(koc_path),
-                str(io_path),
                 str(aftersale_path),
             )
 

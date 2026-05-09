@@ -473,13 +473,12 @@ def _calc_biao_by_city(biao_rows, dest_city, weight):
 
 
 # ============================================================
-# 加载4张新匹配表：B站 / KOC / 出入库 / 售后
+# 加载3张匹配表：B站 / KOC / 售后
 # ============================================================
-def load_bill_matching_maps(bizhan_path, koc_path, io_path, aftersale_path):
+def load_bill_matching_maps(bizhan_path, koc_path, aftersale_path):
     return {
         'bizhan':    load_bizhan_map(bizhan_path),
         'koc':       load_koc_map(koc_path),
-        'io':        load_io_map(io_path),
         'aftersale': load_aftersale_map(aftersale_path),
     }
 
@@ -553,26 +552,6 @@ def load_koc_map(path):
     return result
 
 
-def load_io_map(path):
-    wb = load_workbook(path, data_only=True)
-    ws = wb[wb.sheetnames[0]]
-    header = [str(v).strip() if v is not None else '' for v in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
-    idx = {name: i for i, name in enumerate(header)}
-
-    io_col   = idx.get('出入库单号', -1)
-    note_col = idx.get('备注', -1)
-
-    result = {}
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or all(v is None for v in row):
-            continue
-        if io_col != -1 and io_col < len(row) and row[io_col]:
-            key = str(row[io_col]).strip()
-            note = str(row[note_col]).strip() if (note_col != -1 and note_col < len(row) and row[note_col]) else ''
-            result[key] = note
-    return result
-
-
 def load_aftersale_map(path):
     wb = load_workbook(path, data_only=True)
     ws = wb[wb.sheetnames[0]]
@@ -636,25 +615,8 @@ def cascade_shop_match(waybill_no, order_map, match_maps):
 
 
 # ============================================================
-# 出入库单号&备注匹配
+# 主处理函数
 # ============================================================
-def match_io_note(shop, waybill_no, order_map, match_maps, existing_remark):
-    if not waybill_no:
-        return ''
-
-    if shop and '[其他]' in str(shop) and '吉他情报局' in str(shop):
-        pass
-    else:
-        wb_key = str(waybill_no).strip()
-        resolved_shop = order_map.get(wb_key, '')
-        if not (resolved_shop and '[其他]' in str(resolved_shop) and '吉他情报局' in str(resolved_shop)):
-            return ''
-
-    io_map = match_maps.get('io', {})
-    io_note = io_map.get(str(waybill_no).strip(), '')
-    return f'出入库单号:{waybill_no}; {io_note}' if io_note else f'出入库单号:{waybill_no}'
-
-
 # ============================================================
 # 主处理函数
 # ============================================================
@@ -736,12 +698,7 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         elif match_level == 4:
             stats['shop_bizhan'] += 1
 
-        # 4. 出入库单号匹配
-        io_extra = match_io_note(shop, waybill_no, order_map, match_maps, '')
-        if io_extra:
-            remarks.append(io_extra)
-
-        # 5. 追加KOC/B站型号备注
+        # 4. 追加KOC/B站型号备注
         if extra_note:
             remarks.append(extra_note)
 
