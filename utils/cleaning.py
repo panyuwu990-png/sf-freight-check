@@ -129,6 +129,7 @@ def load_order_shop_map(path):
 
     shop_col    = idx.get('店铺名称', -1)
     express_col = idx.get('快递单号', -1)
+    note_col    = idx.get('系统备注', -1)
 
     result = {}
     for row in ws.iter_rows(min_row=2, values_only=True):
@@ -137,7 +138,8 @@ def load_order_shop_map(path):
         if express_col != -1 and express_col < len(row) and row[express_col]:
             key = str(row[express_col]).strip()
             shop = str(row[shop_col]).strip() if (shop_col != -1 and shop_col < len(row) and row[shop_col]) else ''
-            result[key] = shop
+            note = str(row[note_col]).strip() if (note_col != -1 and note_col < len(row) and row[note_col]) else ''
+            result[key] = {'shop': shop, 'note': note}
     return result
 
 
@@ -591,7 +593,7 @@ def cascade_shop_match(waybill_no, order_map, match_maps):
     wb_key = str(waybill_no).strip()
 
     if wb_key in order_map:
-        shop = order_map[wb_key]
+        shop = order_map[wb_key]['shop']
         if shop:
             return shop, '', 1
 
@@ -722,6 +724,12 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
 
         if shop_ok:
             stats['matched_shop'] += 1
+            # [其他]吉他情报局：从订单明细匹配系统备注追加到备注
+            if shop and '[其他]' in str(shop) and '吉他情报局' in str(shop):
+                order_entry = order_map.get(str(waybill_no).strip(), {})
+                sys_note = order_entry.get('note', '') if isinstance(order_entry, dict) else ''
+                if sys_note:
+                    remarks.append(f'系统备注:{sys_note}')
         else:
             remarks.append('未匹配店铺')
         if province_ok:
