@@ -114,7 +114,7 @@ def download():
     return send_file(export_path, as_attachment=True, download_name=export_name)
 
 
-@app.route('/clear')
+@app.route('/clear', methods=['GET', 'POST'])
 def clear():
     session.pop('export_file', None)
     session.pop('export_name', None)
