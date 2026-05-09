@@ -233,9 +233,10 @@ def calc_freight(price_tables, product, service, sender_area, dest_city, dest_pr
         freight: 计算出的运费，匹配不到返回 None
         matched: 是否匹配到价格
     """
-    # 保价/包装服务/转寄退回：暂不处理
+    # 保价/包装服务：暂不处理；转寄/退回仅对干配生效（享受0.6折扣）
     if service not in ('运费', ''):
-        return None, False
+        if not (product == '顺丰干配' and service == '转寄/退回'):
+            return None, False
 
     # 重量解析
     try:
