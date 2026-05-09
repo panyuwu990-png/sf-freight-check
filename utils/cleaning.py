@@ -159,11 +159,12 @@ def _load_price_sheet(ws):
 
 def load_price_table(path):
     """
-    加载3个Sheet，返回字典：
+    加载3个Sheet + 高峰附加费表，返回字典：
     {
         'ganpei': [...],   # 顺丰干配
         'biao_same': [...], # 顺丰标快（同省）
         'biao_cross': [...], # 顺丰标快（大陆地区异地）
+        'peak_surcharge': {(month, day): surcharge_amount, ...},
     }
     """
     wb = load_workbook(path, data_only=True)
@@ -176,7 +177,42 @@ def load_price_table(path):
             result['biao_same'] = _load_price_sheet(ws)
         elif '异地' in sname:
             result['biao_cross'] = _load_price_sheet(ws)
+        elif '高峰' in sname:
+            result['peak_surcharge'] = _load_peak_surcharge(ws)
+    if 'peak_surcharge' not in result:
+        result['peak_surcharge'] = {}
     return result
+
+
+def _load_peak_surcharge(ws):
+    """加载高峰附加费表，返回 {(month, day): surcharge} 字典"""
+    mapping = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or all(v is None for v in row):
+            continue
+        date_val = row[0]
+        surcharge = row[1] if len(row) > 1 else None
+        if date_val is None:
+            continue
+        # 支持 datetime 对象
+        if hasattr(date_val, 'month') and hasattr(date_val, 'day'):
+            key = (date_val.month, date_val.day)
+            try:
+                mapping[key] = float(surcharge) if surcharge is not None else 0
+            except (TypeError, ValueError):
+                mapping[key] = 0
+        # 支持字符串格式如 "6-18"
+        else:
+            s = str(date_val).strip()
+            if '-' in s:
+                parts = s.split('-')
+                if len(parts) == 2:
+                    try:
+                        key = (int(parts[0]), int(parts[1]))
+                        mapping[key] = float(surcharge) if surcharge is not None else 0
+                    except ValueError:
+                        pass
+    return mapping
 
 
 def _city_match_in_list(city, city_list_str):
@@ -646,6 +682,7 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         'consistent_ok': 0, 'consistent_fail': 0,
         'matched_shop': 0, 'matched_province': 0, 'matched_price': 0,
         'shop_order': 0, 'shop_aftersale': 0, 'shop_koc': 0, 'shop_bizhan': 0,
+        'peak_surcharge': 0,
     }
 
     for r in range(3, ws.max_row + 1):
@@ -665,11 +702,28 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         fee_orig   = ws.cell(r, col_idx.get('费用(元)', 10)).value   # 对比基准
         total_orig = ws.cell(r, col_idx.get('应付金额', 12)).value  # 输出用
 
+        # 0. 日期解析（月-日格式如 '04-01'），匹配高峰附加费
+        bill_date = ws.cell(r, col_idx.get('日期', 2)).value
+        surcharge = None
+        if bill_date is not None:
+            date_str = str(bill_date).strip()
+            if '-' in date_str:
+                parts = date_str.split('-')
+                if len(parts) == 2:
+                    try:
+                        m, d = int(parts[0]), int(parts[1])
+                        peak_map = price_tables.get('peak_surcharge', {})
+                        surcharge = peak_map.get((m, d))
+                        if surcharge:
+                            stats['peak_surcharge'] += 1
+                    except ValueError:
+                        surcharge = None
+
         # 1. 到件地区（不做清洗，直接使用原始值）
         raw_area = str(area).strip() if area else ''
 
-        # 2. 寄件地区清洗（取主城市）
-        sender_main = normalize_area(str(sender_area) if sender_area else '')[1] if sender_area else ''
+        # 2. 寄件地区（取主城市，用于 calc_freight）
+        # sender_main = normalize_area(str(sender_area) if sender_area else '')[1] if sender_area else ''
 
         # 3. 级联店铺匹配
         shop, extra_note, match_level = cascade_shop_match(waybill_no, order_map, match_maps)
@@ -705,8 +759,6 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
             weight,
         )
 
-        surcharge = None
-
         shop_ok     = bool(shop)
         province_ok = bool(province)
         price_ok    = freight is not None
@@ -728,20 +780,20 @@ def process_bill(bill_path, order_map, city_map, price_tables, match_maps):
         if abnormal == '异常':
             stats['abnormal'] += 1
 
-        computed_total = freight
+        computed_total = freight + surcharge if (freight is not None and surcharge is not None) else freight
 
         consistent = ''
-        if freight is not None and total_orig is not None:
+        if computed_total is not None and total_orig is not None:
             try:
-                freight_f = float(freight)
+                computed_f = float(computed_total)
                 total_f = float(str(total_orig).strip())
-                if abs(freight_f - total_f) <= 0.01:
+                if abs(computed_f - total_f) <= 0.01:
                     consistent = '一致'
                     stats['consistent_ok'] += 1
                 else:
                     consistent = '不一致'
                     stats['consistent_fail'] += 1
-                    remarks.append(f'总运费({freight_f})≠应付({total_f})')
+                    remarks.append(f'总运费({computed_f})≠应付({total_f})')
             except (TypeError, ValueError):
                 consistent = ''
 
