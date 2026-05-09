@@ -85,6 +85,7 @@
 
   <div class="upload-panel">
     <form method="post" enctype="multipart/form-data" id="form">
+      <div id="form-error" style="color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; margin-bottom:16px;{% if not error %}display:none{% endif %}">{{ error or '' }}</div>
       <div class="upload-grid">
         <div class="file-box">
           <label>📋 顺丰月结账单</label>
@@ -180,7 +181,10 @@
 <script>
   const form = document.getElementById('form');
   const btn = document.getElementById('submit-btn');
+  const errDiv = document.getElementById('form-error');
   form.addEventListener('submit', () => {
+    errDiv.style.display = 'none';
+    errDiv.textContent = '';
     btn.textContent = '处理中，请稍候…';
     btn.disabled = true;
   });

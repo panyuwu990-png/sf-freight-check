@@ -3,7 +3,7 @@
 顺丰物流月度费用核对 - Flask 应用入口
 """
 
-from flask import Flask, render_template, request, send_file, session
+from flask import Flask, render_template, request, send_file, session, redirect, url_for
 from utils.cleaning import (
     load_city_province_map,
     load_order_shop_map,
@@ -39,7 +39,8 @@ def index():
 
         if not all([bill_file, order_file, city_file, price_file,
                      bizhan_file, koc_file, io_file, aftersale_file]):
-            return '请上传全部8个文件', 400
+            session['error'] = '请上传全部8个文件'
+            return redirect(url_for('index'))
 
         # 保存到临时目录
         with tempfile.TemporaryDirectory() as td:
@@ -102,7 +103,7 @@ def index():
             preview_rows=preview_rows,
         )
 
-    return render_template('index.html', stats=None)
+    return render_template('index.html', stats=None, error=session.pop('error', None))
 
 
 @app.route('/download')
